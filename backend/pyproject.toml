@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+# Silence pytest-asyncio's future default warning
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

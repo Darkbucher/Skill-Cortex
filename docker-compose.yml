@@ -1,0 +1,26 @@
+# docker-compose.yml — Postgres only.
+# Backend (uvicorn) and frontend (npm run dev) run locally for fast edit-reload cycles.
+# See .env.example for the DATABASE_URL that matches this container.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skillcortex_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: skillcortex
+      POSTGRES_PASSWORD: skillcortex
+      POSTGRES_DB: skillcortex
+    ports:
+      - "5432:5432"
+    volumes:
+      - skillcortex_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillcortex -d skillcortex"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  skillcortex_pgdata:
+    driver: local

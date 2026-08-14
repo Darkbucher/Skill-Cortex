@@ -1,0 +1,43 @@
+# render.yaml — Render Blueprint for SkillCortex
+# This file tells Render how to build and deploy the entire stack from this repository.
+
+databases:
+  - name: skillcortex-db
+    databaseName: skillcortex
+    user: skillcortex
+    plan: free
+
+services:
+  - type: web
+    name: skillcortex-backend
+    env: docker
+    plan: free
+    rootDir: backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: skillcortex-db
+          property: connectionString
+      # Add Auth0/Clerk env vars in the Render Dashboard after deployment:
+      # - GOOGLE_OAUTH_CLIENT_ID
+      # - GOOGLE_OAUTH_CLIENT_SECRET
+      # - ALLOWED_AUTH_DOMAIN (e.g. yourcollege.edu.in)
+      # - FRONTEND_URL (set this to the skillcortex-frontend URL)
+    
+    # Run database migrations before booting the new code
+    preDeployCommand: alembic upgrade head
+
+  - type: web
+    name: skillcortex-frontend
+    env: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    # Because static sites on Render do not support dynamic env variables perfectly at runtime,
+    # you MUST set VITE_API_BASE_URL to the URL of the skillcortex-backend service in the Render Dashboard.
+    # We leave a placeholder here as a reminder.
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: "https://skillcortex-backend.onrender.com" # Update this in Render Dashboard if the backend gets a suffix!

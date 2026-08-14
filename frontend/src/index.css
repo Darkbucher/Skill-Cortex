@@ -1,0 +1,72 @@
+/* index.css — SkillCortex global styles */
+
+/* Inter and Playfair Display fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+/* Tailwind v3 directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base resets ─────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  :root {
+    --color-surface: #FFFFFF;
+    --color-border: #E2E4E9;
+  }
+
+  .dark {
+    --color-surface: #262B36;
+    --color-border: #3B4254;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-[#f4f3ef] text-neutral-900 transition-colors duration-300;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .dark html, .dark body {
+    @apply bg-[#161412] text-neutral-100;
+  }
+  
+  #root {
+    min-height: 100vh;
+  }
+}
+
+/* ── Utility layer additions ─────────────────────────────────────────── */
+@layer utilities {
+  /* Tabular numerals for heatmap % and gap counts */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Fade up animation */
+  .animate-fade-up {
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
