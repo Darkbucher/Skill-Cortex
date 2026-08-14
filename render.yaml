@@ -25,8 +25,7 @@ services:
       # - ALLOWED_AUTH_DOMAIN (e.g. yourcollege.edu.in)
       # - FRONTEND_URL (set this to the skillcortex-frontend URL)
     
-    # Run database migrations before booting the new code
-    preDeployCommand: alembic upgrade head
+    # Auth env vars will be added manually in the Render dashboard.
 
   - type: web
     name: skillcortex-frontend

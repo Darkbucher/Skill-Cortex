@@ -11,4 +11,4 @@ COPY . .
 
 # Run the application using uvicorn
 # Using $PORT to support PaaS providers (like Render) that inject dynamic ports
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
