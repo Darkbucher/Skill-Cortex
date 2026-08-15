@@ -28,7 +28,7 @@ services:
     # Auth env vars will be added manually in the Render dashboard.
 
   - type: web
-    name: skillcortex-frontend
+    name: skillcortex
     env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
