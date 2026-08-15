@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useApiClient } from "../hooks/useApiClient";
-import { FloatingInput, FloatingSelect } from "../components/FloatingInput";
+import { FloatingSelect } from "../components/FloatingInput";
+import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
+import { techSkills } from "../utils/techSkills";
 
 const LEVELS = ["beginner", "intermediate", "advanced"];
 
 const LEVEL_BADGE = {
-  beginner:     { bg: "bg-neutral-100 dark:bg-neutral-800 transition-colors dark:bg-neutral-800 transition-colors",  text: "text-neutral-500 dark:text-neutral-500 dark:text-neutral-500", border: "border-neutral-200",  label: "Beginner"     },
-  intermediate: { bg: "bg-amber-50",     text: "text-amber-600",   border: "border-amber-200",    label: "Intermediate" },
-  advanced:     { bg: "bg-teal-50",      text: "text-teal-600",    border: "border-teal-200",     label: "Advanced"     },
+  beginner:     { bg: "bg-neutral-100 dark:bg-neutral-800",  text: "text-neutral-500 dark:text-neutral-400", border: "border-neutral-200 dark:border-neutral-700",  label: "Beginner"     },
+  intermediate: { bg: "bg-amber-50 dark:bg-amber-900/20",     text: "text-amber-600 dark:text-amber-400",   border: "border-amber-200 dark:border-amber-800",    label: "Intermediate" },
+  advanced:     { bg: "bg-teal-50 dark:bg-teal-900/20",      text: "text-teal-600 dark:text-teal-400",    border: "border-teal-200 dark:border-teal-800",     label: "Advanced"     },
 };
 
 function SkillChip({ entry, onRemove }) {
@@ -33,6 +36,18 @@ function SkillChip({ entry, onRemove }) {
   );
 }
 
+// Reusable styling for react-select to match Tailwind dark/light theme
+const reactSelectStyles = {
+  control: (state) => `bg-surface dark:bg-neutral-900 border ${state.isFocused ? 'border-neutral-400 dark:border-neutral-600 ring-1 ring-neutral-400 dark:ring-neutral-600' : 'border-border'} rounded-md p-1.5 transition-colors cursor-text`,
+  menu: () => `bg-surface dark:bg-neutral-900 border border-border shadow-lg rounded-md mt-1 z-50`,
+  option: (state) => `p-2 cursor-pointer ${state.isFocused ? 'bg-neutral-100 dark:bg-neutral-800' : ''}`,
+  singleValue: () => `text-neutral-900 dark:text-neutral-100`,
+  input: () => `text-neutral-900 dark:text-neutral-100`,
+  placeholder: () => `text-neutral-500`,
+  menuList: () => `max-h-60 overflow-y-auto`,
+  noOptionsMessage: () => `p-2 text-neutral-500`,
+};
+
 export default function StudentProfile() {
   const api = useApiClient();
   const [profile, setProfile] = useState(null);
@@ -44,12 +59,10 @@ export default function StudentProfile() {
 
   // Form state
   const [year, setYear] = useState("");
-  const [targetRoleId, setTargetRoleId] = useState("");
+  const [targetRoleObj, setTargetRoleObj] = useState(null); // stores {value, label}
   const [skills, setSkills] = useState([]);   // list[{skill, level}]
-  const [newSkill, setNewSkill] = useState("");
+  const [selectedSkillObj, setSelectedSkillObj] = useState(null);
   const [newSkillLevel, setNewSkillLevel] = useState("beginner");
-
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -60,9 +73,15 @@ export default function StudentProfile() {
         ]);
         setProfile(profileData);
         setYear(profileData.year || "");
-        setTargetRoleId(profileData.target_role_id || "");
         setSkills(profileData.skills || []);
         setRoles(rolesData);
+
+        if (profileData.target_role_id) {
+          const role = rolesData.find(r => r.id === profileData.target_role_id);
+          if (role) {
+            setTargetRoleObj({ value: role.id, label: role.role_name });
+          }
+        }
       } catch (err) {
         setError("Failed to load profile data.");
       } finally {
@@ -72,22 +91,30 @@ export default function StudentProfile() {
     fetchData();
   }, [api]);
 
-  const knownSkills = Array.from(
-    new Set(roles.flatMap((r) => (r.required_skills || []).map((s) => s.skill)))
-  ).sort();
+  const roleOptions = useMemo(() => {
+    return roles.map(r => ({ value: r.id, label: r.role_name }));
+  }, [roles]);
 
-  const suggestions = newSkill.trim().length >= 2
-    ? knownSkills.filter(s => s.toLowerCase().includes(newSkill.trim().toLowerCase()) && !skills.some(es => es.skill.toLowerCase() === s.toLowerCase()))
-    : [];
+  const skillOptions = useMemo(() => {
+    // Exclude already added skills from the dropdown
+    const addedSkills = new Set(skills.map(s => s.skill.toLowerCase()));
+    return techSkills
+      .filter(skill => !addedSkills.has(skill.toLowerCase()))
+      .map(skill => ({ value: skill, label: skill }));
+  }, [skills]);
 
   const handleAddSkill = (e) => {
-    e.preventDefault();
-    const trimmed = newSkill.trim();
-    if (!trimmed) return;
+    e?.preventDefault();
+    if (!selectedSkillObj) return;
+    
+    const skillName = selectedSkillObj.value.trim();
+    if (!skillName) return;
+    
     // Prevent duplicate skill names (case-insensitive)
-    if (skills.some(s => s.skill.toLowerCase() === trimmed.toLowerCase())) return;
-    setSkills([...skills, { skill: trimmed, level: newSkillLevel }]);
-    setNewSkill("");
+    if (skills.some(s => s.skill.toLowerCase() === skillName.toLowerCase())) return;
+    
+    setSkills([...skills, { skill: skillName, level: newSkillLevel }]);
+    setSelectedSkillObj(null);
     setNewSkillLevel("beginner");
   };
 
@@ -103,7 +130,7 @@ export default function StudentProfile() {
     try {
       const updated = await api.put("/students/me", {
         year: year ? parseInt(year) : null,
-        target_role_id: targetRoleId ? parseInt(targetRoleId) : null,
+        target_role_id: targetRoleObj ? parseInt(targetRoleObj.value) : null,
         skills
       });
       setProfile(updated);
@@ -124,8 +151,8 @@ export default function StudentProfile() {
       {error && <div className="mb-4 p-3 bg-danger/10 text-danger rounded">{error}</div>}
       {successMsg && <div className="mb-4 p-3 bg-teal/10 text-teal rounded">{successMsg}</div>}
 
-      <form onSubmit={handleSave} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
+      <form onSubmit={handleSave} className="space-y-8">
+        <div className="grid grid-cols-2 gap-6 items-start">
           <FloatingSelect
             id="year"
             label="Academic Year"
@@ -139,52 +166,44 @@ export default function StudentProfile() {
             ]}
           />
           
-          <FloatingSelect
-            id="targetRole"
-            label="Target Role"
-            value={targetRoleId}
-            onChange={(e) => setTargetRoleId(e.target.value)}
-            options={roles.map(role => ({ value: role.id, label: role.role_name }))}
-          />
+          <div className="relative">
+            <label className="block text-sm font-medium mb-1 text-neutral-700 dark:text-neutral-300">Target Role</label>
+            <Select
+              options={roleOptions}
+              value={targetRoleObj}
+              onChange={setTargetRoleObj}
+              placeholder="Search roles..."
+              classNames={reactSelectStyles}
+              unstyled
+              isClearable
+            />
+          </div>
         </div>
 
         <div>
-          <label className="block text-body font-medium mb-2">My Skills</label>
+          <label className="block text-body font-medium mb-3">My Skills</label>
 
-          {/* Add skill row — skill name + level dropdown */}
-          <div className="flex gap-2 mb-4 items-stretch">
+          <div className="flex flex-col sm:flex-row gap-3 mb-5 items-stretch">
             <div className="flex-1 relative">
-              <FloatingInput 
-                id="newSkill"
-                label="Skill Name (e.g. React, Python)"
-                value={newSkill}
-                onChange={(e) => {
-                  setNewSkill(e.target.value);
-                  setShowSuggestions(true);
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddSkill(e)}
-              />
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute z-10 w-full bg-surface dark:bg-neutral-900 border border-border rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
-                  {suggestions.map(s => (
-                    <li 
-                      key={s}
-                      className="px-3 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer text-neutral-800 dark:text-neutral-200"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setNewSkill(s);
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              )}
+               <label className="block text-sm font-medium mb-1 text-neutral-700 dark:text-neutral-300">Skill Name</label>
+               <CreatableSelect
+                  options={skillOptions}
+                  value={selectedSkillObj}
+                  onChange={setSelectedSkillObj}
+                  placeholder="Type to search or add..."
+                  classNames={reactSelectStyles}
+                  unstyled
+                  isClearable
+                  formatCreateLabel={(inputValue) => `Add custom skill "${inputValue}"`}
+                  onKeyDown={(e) => {
+                    // Automatically add if they press enter while an option is selected
+                    if (e.key === 'Enter' && selectedSkillObj) {
+                      handleAddSkill(e);
+                    }
+                  }}
+               />
             </div>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <FloatingSelect
                 id="newSkillLevel"
                 label="Level"
@@ -193,30 +212,33 @@ export default function StudentProfile() {
                 options={LEVELS.map(l => ({ value: l, label: l.charAt(0).toUpperCase() + l.slice(1) }))}
               />
             </div>
-            <button 
-              type="button"
-              onClick={handleAddSkill}
-              className="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-100 px-6 rounded-btn text-sm font-medium transition-colors"
-            >
-              Add
-            </button>
+            <div className="flex items-end">
+              <button 
+                type="button"
+                onClick={handleAddSkill}
+                disabled={!selectedSkillObj}
+                className="h-[52px] bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-100 px-6 rounded-btn text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add
+              </button>
+            </div>
           </div>
 
           {/* Legend */}
-          <div className="flex gap-3 mb-3 text-xs text-neutral-500 dark:text-neutral-500 dark:text-neutral-500">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-neutral-300" /> Beginner
+          <div className="flex gap-4 mb-4 text-xs font-medium text-neutral-500 dark:text-neutral-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-neutral-300 dark:bg-neutral-600" /> Beginner
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400" /> Intermediate
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 dark:bg-amber-600" /> Intermediate
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-teal-400" /> Advanced
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-teal-400 dark:bg-teal-600" /> Advanced
             </span>
           </div>
           
           {/* Skill chips */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 p-4 bg-neutral-50 dark:bg-neutral-800/30 rounded-lg border border-neutral-100 dark:border-neutral-800/50 min-h-[100px] items-start content-start">
             {skills.map(entry => (
               <SkillChip
                 key={entry.skill}
@@ -225,7 +247,7 @@ export default function StudentProfile() {
               />
             ))}
             {skills.length === 0 && (
-              <span className="text-neutral-400 dark:text-neutral-500 dark:text-neutral-500 text-sm">No skills added yet.</span>
+              <span className="text-neutral-400 dark:text-neutral-500 text-sm mt-1">No skills added yet. Type above to add your first skill!</span>
             )}
           </div>
         </div>
