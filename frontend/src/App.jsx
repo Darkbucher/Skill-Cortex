@@ -1,4 +1,5 @@
 // src/App.jsx
+import { AuthenticateWithRedirectCallback } from "@clerk/clerk-react";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import LoginPage from "./pages/LoginPage";
 import StudentShell from "./pages/StudentShell";
@@ -6,7 +7,21 @@ import AdminShell from "./pages/AdminShell";
 import MentorShell from "./pages/MentorShell";
 
 export default function App() {
+  const isSsoCallback = typeof window !== "undefined" && window.location.pathname.startsWith("/sso-callback");
   const { user, role, isLoading, error } = useCurrentUser();
+
+  if (isSsoCallback) {
+    return (
+      <div className="min-h-screen bg-neutral-100 dark:bg-neutral-800 transition-colors flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+        <AuthenticateWithRedirectCallback
+          signInFallbackRedirectUrl="/"
+          signUpFallbackRedirectUrl="/"
+          continueSignUpUrl="/"
+        />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
