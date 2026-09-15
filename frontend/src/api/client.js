@@ -27,7 +27,14 @@ export const createApiClient = (getToken) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail?.error || "An API error occurred");
+      const serverMsg = errorData.detail?.error || (typeof errorData.detail === "string" ? errorData.detail : null);
+      if (serverMsg) {
+        throw new Error(serverMsg);
+      }
+      if (response.status >= 500) {
+        throw new Error(`Backend server unavailable (${response.status}). Ensure the backend server is running.`);
+      }
+      throw new Error("An API error occurred");
     }
 
     return response.json();
